@@ -1,0 +1,7 @@
+; $Id$
+name = Super Twitter for Drupal
+description = Sets variables for the video hub and creates table to hold the feeds
+
+version = "6.x-1.0"
+core = 6.x
+php = 5.1

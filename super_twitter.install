@@ -1,0 +1,71 @@
+<?php
+	/*
+	* hook_schema for installing the database
+	*/
+	function super_twitter_schema() {
+		$schema['super_twitter_users'] = array(
+			'fields'	=> array(
+				'id'	=>	array(
+						'type'	=> 'serial',
+						'unsigned'	=> TRUE,
+						'not null'	=> TRUE
+				),
+				'twitter_username'	=> array(
+					'type'	=> 'varchar',
+					'length' => 255,
+					'not null' => TRUE
+				),
+				'password' => array(
+					'type'	=> 'varchar',
+					'length' => 255
+				)
+			),
+			'primary key'	=> array('id'),
+		);
+		$schema['super_twitter_settings'] = array(
+			'fields' => array(
+				'id' =>	array(
+						'type'	=> 'serial',
+						'unsigned'	=> TRUE,
+						'not null'	=> TRUE
+				),
+				'username' => array(
+					'type' => 'varchar',
+					'length' => '128'
+				),
+				'numposts' => array(
+					'type' => 'int',
+					'unsigned' => TRUE,
+					'not null' => TRUE,
+				),
+				'backgroundcolor' => array(
+					'type' => 'varchar',
+					'length' => 30
+				),
+				'linkcolor' => array(
+					'type' => 'varchar',
+					'length' => 30
+				),
+				'showavatar' => array(
+					'type' => 'int',
+					'size' => 'tiny'
+				),
+				'customcss' => array(
+					'type' => 'text'
+				)
+			),
+			'primary key'	=> array('id'),
+		);
+		return $schema;
+	}
+	
+	
+	function super_twitter_install() {
+	 // Create my tables.
+	drupal_install_schema('super_twitter');
+	}
+
+	function super_twitter_uninstall() {
+	 // Drop my tables.
+	 drupal_uninstall_schema('super_twitter');
+	}

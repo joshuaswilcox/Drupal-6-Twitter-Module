@@ -1,0 +1,247 @@
+<?php
+	define ('BULLPENMANAGER_PATH', dirname(__FILE__));
+	define ('BLOCK_TWIDGET', 0);
+	/**
+	*hook_menu implementation
+	*/
+	function super_twitter_menu() {
+		$items = array();
+		$access_config = array('administer site configuration');
+		$access_content = array('access content');
+		$items['admin/settings/super-twitter'] = array(
+			'title' => 'Super Twitter Settings',
+			'description' => 'Admin for super twitter',
+			'page callback' => 'drupal_get_form',
+			'page arguments' => array('super_twitter_settings_form'),
+			'access arguments' => $access_config,
+		);
+		
+		$items['admin/settings/super-twitter/general-settings'] = array(
+			'title' => 'Settings',
+			'description' => 'Admin for general settings form',
+			'page callback' => 'drupal_get_form',
+			'page arguments' => array('super_twitter_settings_form'),
+			'access arguments' => $access_config,
+			'type' => MENU_LOCAL_TASK,
+		);
+		
+		return $items;
+	}
+	
+	/**
+	* hook_form implementation
+	*/
+	
+	function super_twitter_settings_form($f) {
+		$r = db_query('SELECT * FROM `super_twitter_settings`');
+		while($row = db_fetch_array($r)) {
+			$rows[] = $row;
+		}
+		$form['super-twitter']['username'] = array(
+			'#type' => 'textfield',
+			'#title' => '@username to use',
+			'#size' => 20,
+			'#default_value' => $rows[0]['username'],
+			'#description' => 'the twitter id you\' like to use'
+		);
+		$form['super-twitter']['numposts'] = array(
+			'#type' => 'textfield',
+			'#title' => 'How many tweets to display',
+			'#size' => 10,
+			'#default_value' => $rows[0]['numposts'],
+			'#description' => 'Enter a number from 1 to anythings, but remember the more you show, the slower the load'
+		);
+		$form['super-twitter']['backgroundcolor'] = array(
+			'#type' => 'textfield',
+			'#title' => 'Background Color',
+			'#size' => 10,
+			'#default_value' => $rows[0]['backgroundcolor'],
+			'#description' => 'enter in a css compatible format like #e3e3e3 or "red"'
+		);
+		$form['super-twitter']['linkcolor'] = array(
+			'#type' => 'textfield',
+			'#title' => 'Link Color',
+			'#size' => 10,
+			'#default_value' => $rows[0]['linkcolor'],
+			'#description' => 'enter in a css compatible format like #e3e3e3 or "red"'
+		);
+		$form['super-twitter']['showavatar'] = array(
+			'#type' => 'checkbox',
+			'#default_value' => $rows[0]['showavatar'],
+			'#title' => 'Show Avatars?',
+		);
+		$form['super-twitter']['customcss'] = array(
+			'#type' => 'textarea',
+			'#title' => 'Custom CSS',
+			'#description' => 'Want to enter some custom css.  Refer the to documentation for the ids and classes used'
+		);
+		$form['super-twitter']['submit'] = array(
+	               '#type'			=> 'submit',
+	               '#value'			=> 'Submit');
+		return $form;
+	}
+	
+	function super_twitter_settings_form_submit($f, $s) {
+		$db = 'super_twitter_settings';
+		$record = new StdClass();
+		$record->username = $s['values']['username'];
+		$record->numposts = $s['values']['numposts'];
+		$record->backgroundcolor = strtolower($s['values']['backgroundcolor']);
+		$record->linkcolor = strtolower($s['values']['linkcolor']);
+		$record->showavatar = $s['values']['showavatar'];
+		$record->customcss = $s['values']['customcss'];
+		
+		$r = db_query('SELECT * FROM `super_twitter_settings`');
+		while($row = db_fetch_array($r)) {
+			$rows[] = $row;
+		}
+		$num_rows = count($rows);
+		
+		if ($num_rows == 0) {
+			$return = drupal_write_record($db, $record);
+			if ($return) {
+				drupal_set_message('Settings have been saved');
+			} else {
+				drupal_set_message('There was an error saving your setttings', 'error');
+			}
+		} else {
+			$q = db_query('UPDATE `super_twitter_settings` SET `id` = \'1\', `username` = "'.$record->username.'", `numposts` = "'.$record->numposts.'", `backgroundcolor` = "'.$record->backgroundcolor.'", `linkcolor` = "'.$record->linkcolor.'", `showavatar` = "'.$record->showavatar.'", `customcss` = "'.$record->customcss.'"');
+		}
+	}
+	
+	/**
+	 * Register a bunch of themes
+	 * @return array The registered theme items
+	 */
+	function super_twitter_theme()
+	{
+		$strTemplatesPath = drupal_get_path('module', 'super_twitter') . '/templates';
+		
+		$r = db_query('SELECT * FROM `super_twitter_settings`');
+		while($row = db_fetch_array($r)) {
+			$rows[] = $row;
+		}
+		
+		$linkcolor = $rows[0]['linkcolor'];
+		$backgroundcolor = $rows[0]['backgroundcolor'];
+		$customcss = $rows[0]['customcss'];
+		
+		$templates['super-twitter-block']
+			= array('template' 	=> 'super-twitter-block',
+                    'path'		=> $strTemplatesPath,
+					'arguments'	=> array('type'		=> null,
+										 'linkcolor' => $linkcolor,
+										 'backgroundcolor' => $backgroundcolor,
+										 'customcss' => $customcss));
+		
+		return $templates;
+	}
+	
+	/**
+     * Implemenation of hook_block().
+     */
+	function super_twitter_block($op = 'list', $delta = 0, $edit = array()) {
+		switch($op) {
+			case 'list':
+				$blocks[BLOCK_TWIDGET]['info'] = t('Super Twitter Block');
+				return $blocks;
+			
+			case 'view':
+				switch($delta) {
+					case BLOCK_TWIDGET:
+					$block['content'] = theme('super-twitter-block');
+					break;
+				}
+				return $block;
+		}
+	}
+	
+	function super_twitter_cron() {
+		$r = db_query('SELECT * FROM `super_twitter_settings`');
+		while($row = db_fetch_array($r)) {
+			$rows[] = $row;
+		}
+		$username = $rows[0]['username'];
+		$count = $rows[0]['numposts'];
+		$feed = 'http://api.twitter.com/1/statuses/user_timeline/'.$username.'.json?count='.$count;
+		
+		$path = 'sites/default/files/twitter-feed';
+		$file = 'sites/default/files/twitter-feed/tweets.xml';
+		
+		if(!is_dir($path)) {
+			mkdir('sites/default/files/twitter_feed');
+		}
+
+		$returndata = file_get_contents($feed);
+		
+		$filename = 'test.txt';
+		$Content = "Add this to the file\r\n";
+
+		$ourFileName = 'sites/default/files/twitter-feed/tweets.json';
+		if(file_exists($ourFileName)) {
+			$ourFileHandle = fopen($ourFileName, 'w+');
+		} else {
+			$ourFileHandle = fopen($ourFileName, 'x+');
+		}
+		fwrite($ourFileHandle, $returndata);
+		fclose($ourFileHandle);
+		
+	}
+	
+	function makeLinks($str) {
+	    $reg_exUrl = "/(http|https|ftp|ftps)\:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}(\/\S*)?/";
+	    $urls = array();
+	    $urlsToReplace = array();
+	    if(preg_match_all($reg_exUrl, $str, $urls)) {
+	        $numOfMatches = count($urls[0]);
+	        $numOfUrlsToReplace = 0;
+	        for($i=0; $i<$numOfMatches; $i++) {
+	            $alreadyAdded = false;
+	            $numOfUrlsToReplace = count($urlsToReplace);
+	            for($j=0; $j<$numOfUrlsToReplace; $j++) {
+	                if($urlsToReplace[$j] == $urls[0][$i]) {
+	                    $alreadyAdded = true;
+	                }
+	            }
+	            if(!$alreadyAdded) {
+	                array_push($urlsToReplace, $urls[0][$i]);
+	            }
+	        }
+	        $numOfUrlsToReplace = count($urlsToReplace);
+	        for($i=0; $i<$numOfUrlsToReplace; $i++) {
+	            $str = str_replace($urlsToReplace[$i], "<a href=\"".$urlsToReplace[$i]."\">".$urlsToReplace[$i]."</a> ", $str);
+	        }
+	        return $str;
+	    } else {
+	        return $str;
+	    }
+	}
+	
+	function makeHash($str) {
+	    $reg_exUrl = "/#([\p{L}\p{Mn}]+)/u";
+	    $urls = array();
+	    $urlsToReplace = array();
+	    if(preg_match_all($reg_exUrl, $str, $urls)) {
+	        $numOfMatches = count($urls[0]);
+	        $numOfUrlsToReplace = 0;
+	        for($i=0; $i<$numOfMatches; $i++) {
+	            $alreadyAdded = false;
+	            $numOfUrlsToReplace = count($urlsToReplace);
+	            for($j=0; $j<$numOfUrlsToReplace; $j++) {
+	                if($urlsToReplace[$j] == $urls[0][$i]) {
+	                    $alreadyAdded = true;
+	                }
+	            }
+	            if(!$alreadyAdded) {
+	                array_push($urlsToReplace, $urls[0][$i]);
+	            }
+	        }
+	        $numOfUrlsToReplace = count($urlsToReplace);
+	        for($i=0; $i<$numOfUrlsToReplace; $i++) {
+	            $str = str_replace($urlsToReplace[$i], "<a href=\"https://twitter.com/#!/search/".$urlsToReplace[$i]."\">".$urlsToReplace[$i]."</a> ", $str);
+	        }
+	        return $str;
+	    } else {
+	        return $str;
+	    }
+	}
